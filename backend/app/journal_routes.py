@@ -1,22 +1,34 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from pydantic import ValidationError
 from datetime import datetime
-from uuid import uuid4
+from bson import ObjectId
 
-from app.schemas import JournalEntryCreate
+from app.schemas import JournalEntryCreate, JournalEntryUpdate
 
 journal_bp = Blueprint("journal", __name__)
 
-# Temporary "database" stored in memory
-ENTRIES = []
+
+def serialize_entry(entry):
+    """Convert MongoDB document into JSON-safe dict"""
+    return {
+        "id": str(entry["_id"]),
+        "title": entry["title"],
+        "content": entry["content"],
+        "created_at": entry["created_at"],
+        "updated_at": entry["updated_at"],
+    }
 
 @journal_bp.get("/entries")
 def get_entries():
-    return jsonify(ENTRIES), 200
+    entries_collection = current_app.db.entries
+    entries = list(entries_collection.find().sort("created_at", -1))
+
+    return jsonify([serialize_entry(e) for e in entries]), 200
 
 
 @journal_bp.post("/entries")
 def create_entry():
+    entries_collection = current_app.db.entries
 
     try:
         data = request.get_json() or {}
@@ -24,43 +36,62 @@ def create_entry():
     except ValidationError as e:
         return jsonify({"error": "Invalid data", "details": e.errors()}), 400
 
+    now = datetime.now().isoformat()
+
     new_entry = {
-        "id": uuid4(),
         "title": entry_data.title,
         "content": entry_data.content,
-        "created_at": datetime.now().isoformat()
+        "created_at": now,
+        "updated_at": now,
     }
 
-    ENTRIES.append(new_entry)
+    result = entries_collection.insert_one(new_entry)
+    print("Inserted ID:", result.inserted_id)
 
-    return jsonify(new_entry), 201
+    created = entries_collection.find_one({"_id": result.inserted_id})
+    return jsonify(serialize_entry(created)), 201
 
 
-@journal_bp.put("/entries/<int:entry_id>")
+@journal_bp.put("/entries/<entry_id>")
 def update_entry(entry_id):
-    data = request.get_json() or {}
+    entries_collection = current_app.db.entries
 
-    # find entry
-    for entry in ENTRIES:
-        if entry["id"] == entry_id:
-            # update only fields sent
-            if "title" in data:
-                entry["title"] = data["title"]
-            if "content" in data:
-                entry["content"] = data["content"]
+    try:
+        data = request.get_json() or {}
+        update_data = JournalEntryUpdate(**data)
+    except ValidationError as e:
+        return jsonify({"error": "Invalid data", "details": e.errors()}), 400
 
-            return jsonify(entry), 200
+    updates = {}
+    if update_data.title is not None:
+        updates["title"] = update_data.title
+    if update_data.content is not None:
+        updates["content"] = update_data.content
 
-    return jsonify({"error": "Entry not found"}), 404
+    if not updates:
+        return jsonify({"error": "No fields provided to update"}), 400
+
+    updates["updated_at"] = datetime.now().isoformat()
+
+    result = entries_collection.update_one(
+        {"_id": ObjectId(entry_id)},
+        {"$set": updates}
+    )
+
+    if result.matched_count == 0:
+        return jsonify({"error": "Entry not found"}), 404
+
+    updated = entries_collection.find_one({"_id": ObjectId(entry_id)})
+    return jsonify(serialize_entry(updated)), 200
 
 
-@journal_bp.delete("/entries/<int:entry_id>")
+@journal_bp.delete("/entries/<entry_id>")
 def delete_entry(entry_id):
-    global ENTRIES
+    entries_collection = current_app.db.entries
 
-    for entry in ENTRIES:
-        if entry["id"] == entry_id:
-            ENTRIES = [e for e in ENTRIES if e["id"] != entry_id]
-            return jsonify({"message": "Deleted"}), 200
+    result = entries_collection.delete_one({"_id": ObjectId(entry_id)})
 
-    return jsonify({"error": "Entry not found"}), 404
+    if result.deleted_count == 0:
+        return jsonify({"error": "Entry not found"}), 404
+
+    return jsonify({"message": "Deleted"}), 200
