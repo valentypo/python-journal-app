@@ -1,7 +1,5 @@
 const API_BASE = "http://127.0.0.1:5000";
 
-alert("script.js is running")
-
 // DOM elements
 const createForm = document.getElementById("createForm");
 const titleInput = document.getElementById("titleInput");
@@ -143,7 +141,7 @@ function renderEntries(entries) {
   }
 
   for (const entry of entries) {
-    const id = entry.id; // Mongo ObjectId string (or UUID if you chose that)
+    const id = entry.id; // Mongo ObjectId string
     const title = escapeHtml(entry.title ?? "");
     const content = escapeHtml(entry.content ?? "");
     const createdAt = entry.created_at ? new Date(entry.created_at).toLocaleString() : "";

@@ -1,29 +1,32 @@
 from flask import Blueprint, request, jsonify, current_app
+from typing import Dict, Any, List
 from pydantic import ValidationError
 from datetime import datetime, date
 from bson import ObjectId
 from openai import OpenAI
 
-from app.schemas import JournalEntryCreate, JournalEntryUpdate
+from app.schemas import JournalEntry, JournalEntryCreate, JournalEntryUpdate
 
 journal_bp = Blueprint("journal", __name__)
 
-def serialize_entry(entry):
+def serialize_entry(entry: Dict[str, Any]) -> JournalEntry:
     # convert MongoDB document into JSON-safe dict
-    return {
-        "id": str(entry["_id"]),
-        "title": entry["title"],
-        "content": entry["content"],
-        "created_at": entry["created_at"],
-        "updated_at": entry["updated_at"],
-    }
+    return JournalEntry(
+        id = str(entry["_id"]),
+        title = entry["title"],
+        content = entry["content"],
+        created_at = entry["created_at"],
+        updated_at =  entry["updated_at"],
+    )
 
 @journal_bp.get("/entries")
 def get_entries():
     entries_collection = current_app.db.entries
-    entries = list(entries_collection.find().sort("created_at", -1))
 
-    return jsonify([serialize_entry(e) for e in entries]), 200
+    docs = list(entries_collection.find().sort("created_at", -1))
+    entries: List[JournalEntry] = [serialize_entry(d) for d in docs]
+
+    return jsonify([e.model_dump() for e in entries]), 200
 
 
 @journal_bp.post("/entries")
@@ -49,7 +52,9 @@ def create_entry():
     print("Inserted ID:", result.inserted_id)
 
     created = entries_collection.find_one({"_id": result.inserted_id})
-    return jsonify(serialize_entry(created)), 201
+    entry: JournalEntry = serialize_entry(created)
+    return jsonify(entry.model_dump()), 201
+
 
 
 @journal_bp.put("/entries/<entry_id>")
@@ -82,7 +87,8 @@ def update_entry(entry_id):
         return jsonify({"error": "Entry not found"}), 404
 
     updated = entries_collection.find_one({"_id": ObjectId(entry_id)})
-    return jsonify(serialize_entry(updated)), 200
+    entry = serialize_entry(updated)
+    return jsonify(entry.model_dump()), 200
 
 
 @journal_bp.delete("/entries/<entry_id>")

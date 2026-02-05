@@ -10,3 +10,11 @@ class JournalEntryCreate(BaseModel):
 class JournalEntryUpdate(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
+
+
+class JournalEntry(BaseModel):
+    id: str
+    title: str
+    content: str
+    created_at: str
+    updated_at: str
