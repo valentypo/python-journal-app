@@ -1,15 +1,15 @@
 from flask import Blueprint, request, jsonify, current_app
 from pydantic import ValidationError
-from datetime import datetime
+from datetime import datetime, date
 from bson import ObjectId
+from openai import OpenAI
 
 from app.schemas import JournalEntryCreate, JournalEntryUpdate
 
 journal_bp = Blueprint("journal", __name__)
 
-
 def serialize_entry(entry):
-    """Convert MongoDB document into JSON-safe dict"""
+    # convert MongoDB document into JSON-safe dict
     return {
         "id": str(entry["_id"]),
         "title": entry["title"],
@@ -95,3 +95,54 @@ def delete_entry(entry_id):
         return jsonify({"error": "Entry not found"}), 404
 
     return jsonify({"message": "Deleted"}), 200
+
+@journal_bp.post("/entries/summarize")
+def summarize_today(): # summarizes entry only for all entries made today.
+    
+    today = date.today().isoformat()
+    start = f"{today}T00:00:00"
+    end = f"{today}T23:59:59"
+
+    entries_collection = current_app.db.entries
+
+    entries = list(
+        entries_collection.find({
+            "created_at": {
+                "$gte": start,
+                "$lte": end
+            }
+        })
+    )
+
+    if not entries:
+        return jsonify({"error": "No entries for today"}), 400
+    
+    journal_text = ""
+
+    for i, entry in enumerate(entries, start=1):
+        journal_text += f"""
+        Entry {i}
+        Title: {entry['title']}
+        Content: {entry['content']}
+        """
+
+    client = OpenAI()
+    
+    system_prompt = """
+        The text you received is user's journal from today's entry. 
+        You must summarize their entry with a minimum length of 1 sentence and maximum length of 3 sentences, try to keep it balanced.
+        If there are not enough contents you can add suggestion for the user's input.
+        Make sure that you use a warm tone and explain as brief as possible, as user will prefer a shorter summarization.
+    """
+    
+    response = client.responses.create(
+        model="gpt-5-nano",
+        input=[
+            {"role": "user", "content": journal_text},
+            {"role":"system", "content": system_prompt}
+        ],
+    )
+    
+    summary_text = response.output_text
+    
+    return jsonify({"summary": summary_text}), 200

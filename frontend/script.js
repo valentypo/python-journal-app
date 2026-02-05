@@ -1,5 +1,6 @@
-// CHANGE THIS if your backend runs somewhere else
 const API_BASE = "http://127.0.0.1:5000";
+
+alert("script.js is running")
 
 // DOM elements
 const createForm = document.getElementById("createForm");
@@ -8,6 +9,9 @@ const contentInput = document.getElementById("contentInput");
 const entriesList = document.getElementById("entriesList");
 const refreshBtn = document.getElementById("refreshBtn");
 const statusText = document.getElementById("statusText");
+const summarizeBtn = document.getElementById("summarizeBtn")
+const summaryBox = document.getElementById("summaryBox")
+const summaryText = document.getElementById("summaryText")
 
 // -----------------------------
 // Helpers
@@ -90,6 +94,38 @@ async function deleteEntry(id) {
 
   await fetchEntries();
 }
+
+// SUMMARIZE TODAY'S ENTRYs
+console.log("Summarize button:", summarizeBtn) // must NOT be null
+
+summarizeBtn.addEventListener("click", async () => {
+  console.log("Summarize clicked")
+
+  summarizeBtn.disabled = true
+  summarizeBtn.textContent = "Summarizing..."
+
+  try {
+    const res = await fetch(`${API_BASE}/entries/summarize`, {
+      method: "POST",
+    })
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to summarize")
+    }
+
+    summaryText.textContent = data.summary
+
+    summaryBox.classList.remove("max-h-0", "opacity-0")
+    summaryBox.classList.add("max-h-[500px]", "opacity-100")
+  } catch (err) {
+    alert(err.message)
+  } finally {
+    summarizeBtn.disabled = false
+    summarizeBtn.textContent = "Summarize Today"
+  }
+})
 
 // -----------------------------
 // UI Rendering
