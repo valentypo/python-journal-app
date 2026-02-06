@@ -97,17 +97,6 @@ def delete_entry(entry_id):
     return jsonify({"message": "Deleted"}), 200
 
 
-# @journal_bp.post("/entries/summarize/<period>")
-# def summarize(period):
-#     start, end = get_date_range(period)
-
-#     if period == "daily":
-#         summary = summarize_and_store(period, start, end)
-#         return jsonify({"summary": summary})
-    
-#     task = summarize_entries_task.delay(period, start, end)
-#     return jsonify({"task_id": task.id}), 202
-
 @journal_bp.post("/entries/summarize/<period>")
 def summarize(period):
     start, end = get_date_range(period)
