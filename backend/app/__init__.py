@@ -15,8 +15,8 @@ def create_app():
     CORS(app)
 
     app.config["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
-    app.config["CELERY_BROKER_URL"] = "redis://journal_redis:6379/0" # journal_redis itu nama service redis di docker-compose
-    app.config["CELERY_RESULT_BACKEND"] = "redis://journal_redis:6379/0"
+    app.config["CELERY_BROKER_URL"] = "redis://redis:6379/0" # redis itu nama service redis di docker-compose
+    app.config["CELERY_RESULT_BACKEND"] = "redis://redis:6379/0"
 
 
     if not app.config["OPENAI_API_KEY"]:

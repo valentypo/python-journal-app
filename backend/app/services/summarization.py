@@ -1,7 +1,16 @@
 from datetime import datetime
 from openai import OpenAI
 from app.utils import build_journal_text
-from flask import current_app
+from pymongo import MongoClient
+import os
+
+# Use a standalone MongoClient inside tasks so Celery workers don't
+# depend on Flask's `current_app` application context.
+_MONGO_URI = os.getenv("MONGODB_URI")
+if not _MONGO_URI:
+    raise RuntimeError("MONGODB_URI not found in environment for summarization task")
+_client = MongoClient(_MONGO_URI)
+_db = _client["journal_db"]
 
 def summarize_entries(entries, period: str) -> str:
     journal_text = build_journal_text(entries)
@@ -27,7 +36,7 @@ def summarize_entries(entries, period: str) -> str:
 
 def summarize_and_store(period: str, start: str, end: str):
     entries = list(
-        current_app.db.entries.find({
+        _db.entries.find({
             "created_at": {"$gte": start, "$lte": end}
         })
     )
@@ -35,7 +44,7 @@ def summarize_and_store(period: str, start: str, end: str):
     if not entries:
         return None
 
-    existing = current_app.db.summaries.find_one({
+    existing = _db.summaries.find_one({
         "period": period,
         "start_date": start,
         "end_date": end,
@@ -46,7 +55,7 @@ def summarize_and_store(period: str, start: str, end: str):
 
     summary = summarize_entries(entries, period)
 
-    current_app.db.summaries.insert_one({
+    _db.summaries.insert_one({
         "period": period,
         "start_date": start,
         "end_date": end,

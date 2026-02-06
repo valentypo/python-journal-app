@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify, current_app
+from celery.result import AsyncResult
 from typing import List
 from pydantic import ValidationError
 from datetime import datetime
@@ -96,13 +97,48 @@ def delete_entry(entry_id):
     return jsonify({"message": "Deleted"}), 200
 
 
+# @journal_bp.post("/entries/summarize/<period>")
+# def summarize(period):
+#     start, end = get_date_range(period)
+
+#     if period == "daily":
+#         summary = summarize_and_store(period, start, end)
+#         return jsonify({"summary": summary})
+    
+#     task = summarize_entries_task.delay(period, start, end)
+#     return jsonify({"task_id": task.id}), 202
+
 @journal_bp.post("/entries/summarize/<period>")
 def summarize(period):
     start, end = get_date_range(period)
-
-    if period == "daily":
-        summary = summarize_and_store(period, start, end)
-        return jsonify({"summary": summary})
-    
+    # dispatch Celery task to summarize entries for the period
     task = summarize_entries_task.delay(period, start, end)
-    return jsonify({"task_id": task.id}), 202
+
+    return jsonify({
+        "task_id": task.id,
+        "status": "processing"
+    }), 202
+
+@journal_bp.get("/tasks/<task_id>")
+def get_task(task_id):
+    task = AsyncResult(task_id)
+
+    response = {
+        "task_id": task_id,
+        "state": task.state
+    }
+
+    if task.state == "PENDING":
+        response["message"] = "Task queued"
+
+    elif task.state == "STARTED":
+        response["message"] = "Task running"
+
+    elif task.state == "SUCCESS":
+        response["summary"] = task.result   # <-- returned value
+        response["message"] = "Completed"
+
+    elif task.state == "FAILURE":
+        response["message"] = str(task.result)
+
+    return jsonify(response)
