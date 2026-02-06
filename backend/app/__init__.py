@@ -1,6 +1,7 @@
 import os
-from flask import Flask
+from flask import Flask, app
 from flask_cors import CORS
+from app.celery_app import make_celery
 from dotenv import load_dotenv
 from pymongo import MongoClient
 
@@ -8,27 +9,28 @@ from app.journal_routes import journal_bp
 
 
 def create_app():
-    load_dotenv()  # loads .env into environment variables
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    load_dotenv()
 
     app = Flask(__name__)
     CORS(app)
 
     app.config["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
+    app.config["CELERY_BROKER_URL"] = "redis://journal_redis:6379/0" # journal_redis itu nama service redis di docker-compose
+    app.config["CELERY_RESULT_BACKEND"] = "redis://journal_redis:6379/0"
+
 
     if not app.config["OPENAI_API_KEY"]:
         raise RuntimeError("OPENAI_API_KEY not found")
-    
-    # Mongo connection
+
+    # Mongo
     mongo_uri = os.getenv("MONGODB_URI")
     if not mongo_uri:
-        raise ValueError("MONGODB_URI is not found.")
+        raise RuntimeError("MONGODB_URI not found")
 
     client = MongoClient(mongo_uri)
-    db = client["journal_db"]
+    app.db = client["journal_db"]
 
-    # store db on app so routes can access it
-    app.db = db
+    make_celery(app)
 
     app.register_blueprint(journal_bp)
 

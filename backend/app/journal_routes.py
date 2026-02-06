@@ -1,23 +1,16 @@
 from flask import Blueprint, request, jsonify, current_app
-from typing import Dict, Any, List
+from typing import List
 from pydantic import ValidationError
-from datetime import datetime, date
+from datetime import datetime
 from bson import ObjectId
-from openai import OpenAI
-
+from app.serializers import serialize_entry
+from app.services.summarization import summarize_and_store
+from app.tasks import summarize_entries_task
+from app.utils import get_date_range
 from app.schemas import JournalEntry, JournalEntryCreate, JournalEntryUpdate
 
 journal_bp = Blueprint("journal", __name__)
 
-def serialize_entry(entry: Dict[str, Any]) -> JournalEntry:
-    # convert MongoDB document into JSON-safe dict
-    return JournalEntry(
-        id = str(entry["_id"]),
-        title = entry["title"],
-        content = entry["content"],
-        created_at = entry["created_at"],
-        updated_at =  entry["updated_at"],
-    )
 
 @journal_bp.get("/entries")
 def get_entries():
@@ -102,53 +95,14 @@ def delete_entry(entry_id):
 
     return jsonify({"message": "Deleted"}), 200
 
-@journal_bp.post("/entries/summarize")
-def summarize_today(): # summarizes entry only for all entries made today.
-    
-    today = date.today().isoformat()
-    start = f"{today}T00:00:00"
-    end = f"{today}T23:59:59"
 
-    entries_collection = current_app.db.entries
+@journal_bp.post("/entries/summarize/<period>")
+def summarize(period):
+    start, end = get_date_range(period)
 
-    entries = list(
-        entries_collection.find({
-            "created_at": {
-                "$gte": start,
-                "$lte": end
-            }
-        })
-    )
-
-    if not entries:
-        return jsonify({"error": "No entries for today"}), 400
+    if period == "daily":
+        summary = summarize_and_store(period, start, end)
+        return jsonify({"summary": summary})
     
-    journal_text = ""
-
-    for i, entry in enumerate(entries, start=1):
-        journal_text += f"""
-        Entry {i}
-        Title: {entry['title']}
-        Content: {entry['content']}
-        """
-
-    client = OpenAI()
-    
-    system_prompt = """
-        The text you received is user's journal from today's entry. 
-        You must summarize their entry with a minimum length of 1 sentence and maximum length of 3 sentences, try to keep it balanced.
-        If there are not enough contents you can add suggestion for the user's input.
-        Make sure that you use a warm tone and explain as brief as possible, as user will prefer a shorter summarization.
-    """
-    
-    response = client.responses.create(
-        model="gpt-5-nano",
-        input=[
-            {"role": "user", "content": journal_text},
-            {"role":"system", "content": system_prompt}
-        ],
-    )
-    
-    summary_text = response.output_text
-    
-    return jsonify({"summary": summary_text}), 200
+    task = summarize_entries_task.delay(period, start, end)
+    return jsonify({"task_id": task.id}), 202

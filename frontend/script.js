@@ -102,8 +102,8 @@ summarizeBtn.addEventListener("click", async () => {
   summarizeBtn.disabled = true
   summarizeBtn.textContent = "Summarizing..."
 
-  try {
-    const res = await fetch(`${API_BASE}/entries/summarize`, {
+    try {
+    const res = await fetch(`${API_BASE}/entries/summarize/daily`, {
       method: "POST",
     })
 
