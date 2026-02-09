@@ -1,5 +1,6 @@
-from pydantic import BaseModel
-from typing import Optional, Literal
+from pydantic import BaseModel, Field
+from typing import List, Optional, Literal
+from datetime import datetime
 
 
 class JournalEntryCreate(BaseModel):
@@ -34,3 +35,15 @@ class SummaryCreate(BaseModel):
     start_date: str
     end_date: str
     summary: str
+
+
+class RAGQuerySchema(BaseModel):
+    query: str = Field(..., description="User question")
+    top_k: int = Field(default=5, description="How many chunks to retrieve")
+
+
+class RAGResponseSchema(BaseModel):
+    query: str
+    answer: str
+    sources: List[str]
+    created_at: str
