@@ -1,4 +1,3 @@
-<!-- ================= index.html ================= -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,55 +5,221 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Journal</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Markdown renderer -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    /* Smooth transitions */
+    * {
+      transition: all 0.2s ease;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(17, 24, 39, 0.5);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(75, 85, 99, 0.5);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(107, 114, 128, 0.7);
+    }
+
+    /* Subtle hover glow */
+    .card-hover {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .card-hover:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15);
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    /* Button hover */
+    .btn-hover {
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-hover::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
+    }
+    .btn-hover:hover::before {
+      width: 300px;
+      height: 300px;
+    }
+
+    /* Fade in animation */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .fade-in {
+      animation: fadeIn 0.4s ease-out;
+    }
+
+    /* Floating title animation */
+    @keyframes float {
+      0%, 100% {
+        transform: translateY(0px);
+      }
+      50% {
+        transform: translateY(-8px);
+      }
+    }
+    .floating-title {
+      animation: float 3s ease-in-out infinite;
+    }
+
+    /* Entry item hover */
+    .entry-item {
+      transition: all 0.2s ease;
+    }
+    .entry-item:hover {
+      background: rgba(55, 65, 81, 0.3);
+      border-color: rgba(99, 102, 241, 0.2);
+    }
+
+    /* Chat popup animation */
+    #chatPopup.show {
+      animation: slideUp 0.3s ease-out;
+    }
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Input focus glow */
+    input:focus, textarea:focus, select:focus {
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+  </style>
 </head>
 
 <body class="bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 text-gray-100 min-h-screen">
+  
+  <!-- Floating Chat Button -->
+  <button id="chatToggle"
+    class="fixed bottom-6 right-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-xl text-2xl hover:scale-110 z-50">
+    💬
+  </button>
+
+  <!-- Chat Popup -->
+  <div id="chatPopup"
+    class="fixed bottom-24 right-6 w-96 max-h-[600px] bg-gray-900/95 backdrop-blur-xl border border-gray-800 rounded-2xl shadow-2xl z-[9999] hidden flex-col">
+
+    <!-- Header -->
+    <div class="p-4 border-b border-gray-800 font-semibold flex justify-between items-center flex-shrink-0">
+      <span>AI Journal Assistant</span>
+      <button id="closeChat" class="text-gray-400 hover:text-white hover:rotate-90">✕</button>
+    </div>
+
+    <!-- Messages - Fixed Height with Scroll -->
+    <div id="chatMessages" class="flex-1 p-4 space-y-3 overflow-y-auto text-sm min-h-[300px] max-h-[400px]"></div>
+
+    <!-- Input -->
+    <div class="p-3 border-t border-gray-800 flex gap-2 flex-shrink-0">
+      <input id="chatInput"
+        type="text"
+        placeholder="Ask about your journal..."
+        class="flex-1 bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-500">
+      <button id="sendChat"
+        class="bg-indigo-600 px-4 rounded-lg hover:bg-indigo-500 btn-hover">Send</button>
+    </div>
+  </div>
+
   <div class="max-w-3xl mx-auto p-6">
 
-    <header class="mb-8">
-      <h1 class="text-4xl font-bold tracking-tight">Steven's AI Journal</h1>
+    <header class="mb-8 fade-in">
+      <h1 class="text-4xl font-bold tracking-tight text-gray-100 floating-title">
+        Steven's AI Journal
+      </h1>
       <p class="text-gray-400 mt-2">Write daily thoughts. Get AI-powered summaries.</p>
     </header>
 
     <!-- Create Entry -->
-    <section class="bg-gray-900/80 backdrop-blur border border-gray-800 rounded-2xl p-5 mb-6 shadow-xl">
+    <section class="bg-gray-900/80 backdrop-blur border border-gray-800 rounded-2xl p-5 mb-6 shadow-xl card-hover fade-in">
       <h2 class="text-xl font-semibold mb-4">New Entry</h2>
       <form id="createForm" class="space-y-4">
-        <input id="titleInput" type="text" placeholder="Title" class="w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none" required />
-        <textarea id="contentInput" placeholder="Write your thoughts..." rows="4" class="w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none" required></textarea>
-        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-xl transition">+ Add Entry</button>
+        <input 
+          id="titleInput" 
+          type="text" 
+          placeholder="Title" 
+          class="w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-2 outline-none hover:border-gray-700" 
+          required 
+        />
+        <textarea 
+          id="contentInput" 
+          placeholder="Write your thoughts..." 
+          rows="4" 
+          class="w-full rounded-xl bg-gray-950 border border-gray-800 px-4 py-2 outline-none hover:border-gray-700 resize-none" 
+          required
+        ></textarea>
+        <button 
+          type="submit" 
+          class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl btn-hover relative">
+          <span class="relative z-10">+ Add Entry</span>
+        </button>
       </form>
     </section>
 
     <!-- AI Summary -->
-    <section class="bg-gray-900/80 backdrop-blur border border-gray-800 rounded-2xl p-5 mb-6 shadow-xl">
+    <section class="bg-gray-900/80 backdrop-blur border border-gray-800 rounded-2xl p-5 mb-6 shadow-xl card-hover fade-in" style="animation-delay: 0.1s">
       <div class="flex items-center justify-between gap-3 flex-wrap">
         <h2 class="text-xl font-semibold">AI Summary</h2>
         <div class="flex gap-2 items-center">
-          <select id="periodSelect" class="bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm">
+          <select id="periodSelect" class="bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm outline-none hover:border-gray-700">
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
             <option value="monthly">Monthly</option>
           </select>
-          <button id="summarizeBtn" class="px-4 py-2 bg-indigo-600 rounded-xl hover:bg-indigo-700 transition">Generate</button>
+          <button id="summarizeBtn" class="px-4 py-2 bg-indigo-600 rounded-xl hover:bg-indigo-500 btn-hover relative">
+            <span class="relative z-10">Generate</span>
+          </button>
         </div>
       </div>
 
       <div id="summaryBox" class="mt-4 hidden">
         <div id="loadingText" class="animate-pulse text-gray-400">Processing summary...</div>
-        <div id="summaryText" class="mt-3 prose prose-invert max-w-none"></div>
+        <div id="summaryText" class="mt-3 prose prose-invert max-w-none text-sm"></div>
       </div>
     </section>
 
     <!-- Entries -->
-    <section class="bg-gray-900/80 backdrop-blur border border-gray-800 rounded-2xl p-5 shadow-xl">
+    <section class="bg-gray-900/80 backdrop-blur border border-gray-800 rounded-2xl p-5 shadow-xl card-hover fade-in" style="animation-delay: 0.2s">
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-xl font-semibold">Entries</h2>
-        <button id="refreshBtn" class="text-sm px-3 py-1 rounded-lg border border-gray-700 hover:bg-gray-800 transition">Refresh</button>
+        <button id="refreshBtn" class="text-sm px-3 py-1.5 rounded-lg border border-gray-700 hover:bg-gray-800 hover:border-gray-600">
+          Refresh
+        </button>
       </div>
-      <div id="entriesList" class="space-y-3"></div>
+      
+      <!-- Fixed Height Entries List with Scroll -->
+      <div id="entriesList" class="space-y-3 max-h-[500px] overflow-y-auto pr-2"></div>
     </section>
 
   </div>
