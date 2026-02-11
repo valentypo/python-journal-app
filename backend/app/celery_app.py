@@ -3,8 +3,8 @@ import os
 
 # Create a Celery instance without importing the Flask app at import-time.
 # The Flask app should call `make_celery(app)` after the app is created.
-broker = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
-backend = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
+broker = os.getenv("CELERY_BROKER_URL")
+backend = os.getenv("CELERY_RESULT_BACKEND")
 
 celery = Celery(__name__, broker=broker, backend=backend)
 
