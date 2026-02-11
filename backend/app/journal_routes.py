@@ -5,10 +5,10 @@ from pydantic import ValidationError
 from datetime import datetime
 from bson import ObjectId
 from app.serializers import serialize_entry
-from app.services.summarization import summarize_and_store
 from app.tasks import summarize_entries_task
 from app.utils import get_date_range
 from app.schemas import JournalEntry, JournalEntryCreate, JournalEntryUpdate
+from app.services.rag_service_langchain import index_journal_entry
 
 journal_bp = Blueprint("journal", __name__)
 
@@ -47,6 +47,18 @@ def create_entry():
 
     created = entries_collection.find_one({"_id": result.inserted_id})
     entry: JournalEntry = serialize_entry(created)
+    
+    # auto index to RAG vector DB
+    try:
+        index_journal_entry(
+            journal_id=str(result.inserted_id),
+            title=entry.title,
+            content=entry.content,
+            date=entry.created_at[:10]
+        )
+    except Exception as e:
+        print("RAG indexing failed:", e)
+
     return jsonify(entry.model_dump()), 201
 
 

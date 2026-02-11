@@ -42,8 +42,13 @@ class RAGQuerySchema(BaseModel):
     top_k: int = Field(default=5, description="How many chunks to retrieve")
 
 
+class RAGSourceSchema(BaseModel):
+    journal_id: str
+    date: str
+
+
 class RAGResponseSchema(BaseModel):
     query: str
     answer: str
-    sources: List[str]
+    sources: List[RAGSourceSchema]
     created_at: str
