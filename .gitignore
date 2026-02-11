@@ -173,3 +173,5 @@ backup**
 # sonar
 .sonar**/*
 .scanner**/*
+
+data

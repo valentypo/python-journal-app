@@ -1,22 +1,29 @@
 import os
-from flask import Flask, app
+from flask import Flask
 from flask_cors import CORS
-from app.celery_app import make_celery
 from dotenv import load_dotenv
 from pymongo import MongoClient
-
+from app.celery_app import make_celery
 from app.journal_routes import journal_bp
+from app.rag_routes import rag_bp
 
 
 def create_app():
     load_dotenv()
 
     app = Flask(__name__)
-    CORS(app)
+    CORS(
+        app,
+        resources={r"/*": {"origins": "*"}},
+        supports_credentials=True,
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization"]
+    )
+    
 
     app.config["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
-    app.config["CELERY_BROKER_URL"] = "redis://redis:6379/0" # redis itu nama service redis di docker-compose
-    app.config["CELERY_RESULT_BACKEND"] = "redis://redis:6379/0"
+    app.config["CELERY_BROKER_URL"] = os.getenv("CELERY_BROKER_URL")
+    app.config["CELERY_RESULT_BACKEND"] = os.getenv("CELERY_RESULT_BACKEND")
 
 
     if not app.config["OPENAI_API_KEY"]:
@@ -33,5 +40,6 @@ def create_app():
     make_celery(app)
 
     app.register_blueprint(journal_bp)
+    app.register_blueprint(rag_bp)
 
     return app
